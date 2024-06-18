@@ -1,0 +1,33 @@
+def vigenere_encrypt_russian(text, key):
+    # Алфавит
+    alphabet = 'абвгдеёжзийклмнопрстуфхцчшщъыьэюя'
+
+    encrypted_text = []
+    key_index = 0
+
+    for char in text:
+        if char in alphabet:
+            # Находим индекс символа в алфавите
+            char_index = alphabet.index(char)
+            key_char = key[key_index % len(key)]
+
+            key_char_index = alphabet.index(key_char)
+            # Шифруем символ
+            new_index = (char_index + key_char_index) % len(alphabet)
+            encrypted_text.append(alphabet[new_index])
+
+            key_index += 1
+        else:
+            # Если символ не из алфавита, оставляем его без изменений
+            encrypted_text.append(char)
+
+    return ''.join(encrypted_text)
+
+
+# Запрашиваем текст и ключ с клавиатуры
+text = input("Введите текст для шифрования: ")
+key = input("Введите ключ: ")
+
+# Шифруем текст
+encrypted_text = vigenere_encrypt_russian(text, key)
+print(f"Зашифрованный текст: {encrypted_text}")
