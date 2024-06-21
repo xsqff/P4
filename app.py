@@ -1,15 +1,11 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, make_response
 from flask_restful import Api, Resource
 from datetime import datetime
 
-# Инициализация приложения Flask и API
 app = Flask(__name__)
 api = Api(app)
 
-# Определение алфавита для шифрования
-ALPHABET = " ,.:(_)-0123456789AБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ"
-
-# Временное хранилище данных
+ALPHABET = " ,.:(_)-0123456789АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ"
 users = []
 methods = [
     {"id": 1, "caption": "CAESAR", "json_params": '{"shift": "int"}', "description": "Caesar cipher"},
@@ -20,7 +16,6 @@ user_counter = 1
 session_counter = 1
 
 
-# Функция для шифрования методом Цезаря
 def caesar_cipher(text, shift, decrypt=False):
     result = []
     shift = -shift if decrypt else shift
@@ -33,7 +28,6 @@ def caesar_cipher(text, shift, decrypt=False):
     return ''.join(result)
 
 
-# Функция для шифрования методом Виженера
 def vigenere_cipher(text, key, decrypt=False):
     result = []
     key_indices = [ALPHABET.index(k) for k in key]
@@ -48,65 +42,55 @@ def vigenere_cipher(text, key, decrypt=False):
     return ''.join(result)
 
 
-# Ресурс для управления пользователями
 class UserResource(Resource):
     def post(self):
         global user_counter
         data = request.get_json()
-        new_user = {
-            "id": user_counter,
-            "login": data['login'],
-            "secret": data['secret']
-        }
+        new_user = {"id": user_counter, "login": data['login'], "secret": data['secret']}
         users.append(new_user)
         user_counter += 1
-        return jsonify({"message": "User created successfully", "user": new_user})
+        return make_response(jsonify({"message": "User created successfully", "user": new_user}), 201)
 
     def get(self):
         result = [{"id": user['id'], "login": user['login']} for user in users]
-        return jsonify(result)
+        return make_response(jsonify(result), 200)
 
 
-# Ресурс для просмотра методов шифрования
 class MethodResource(Resource):
     def get(self):
-        return jsonify(methods)
+        return make_response(jsonify(methods), 200)
 
 
-# Ресурс для управления сеансами шифрования
 class SessionResource(Resource):
     def post(self):
         global session_counter
         data = request.get_json()
         user_id = data['user_id']
         method_id = data['method_id']
-
-        # Проверка наличия пользователя и метода
+        action = data.get('action', 'encrypt')
         user = next((u for u in users if u['id'] == user_id), None)
         method = next((m for m in methods if m['id'] == method_id), None)
-        if not user:
-            return jsonify({"message": "User not found"}), 404
-        if not method:
-            return jsonify({"message": "Method not found"}), 404
 
-        # Подготовка данных для шифрования
+        if not user:
+            return make_response(jsonify({"message": "User not found"}), 404)
+        if not method:
+            return make_response(jsonify({"message": "Method not found"}), 404)
+
         data_in = data['data_in'].upper()
         data_in = ''.join(filter(lambda x: x in ALPHABET, data_in))
         params = data.get('params', {})
         start_time = datetime.now()
 
-        # Выполнение шифрования
         if method['caption'] == "CAESAR":
             shift = int(params.get('shift', 0))
-            data_out = caesar_cipher(data_in, shift)
+            data_out = caesar_cipher(data_in, shift, decrypt=(action == 'decrypt'))
         elif method['caption'] == "VIGENERE":
             key = params.get('key', '')
-            data_out = vigenere_cipher(data_in, key)
+            data_out = vigenere_cipher(data_in, key, decrypt=(action == 'decrypt'))
 
         end_time = datetime.now()
         time_op = (end_time - start_time).total_seconds()
 
-        # Создание нового сеанса шифрования
         new_session = {
             "id": session_counter,
             "user_id": user_id,
@@ -120,27 +104,26 @@ class SessionResource(Resource):
         }
         sessions.append(new_session)
         session_counter += 1
-        return jsonify({"message": "Encryption session created successfully", "session": new_session})
+        return make_response(jsonify({"message": "Encryption session created successfully", "session": new_session}), 201)
 
     def get(self, session_id):
         session = next((s for s in sessions if s['id'] == session_id), None)
         if not session:
-            return jsonify({"message": "Session not found"}), 404
-        return jsonify(session)
+            return make_response(jsonify({"message": "Session not found"}), 404)
+        return make_response(jsonify(session), 200)
 
     def delete(self, session_id):
         data = request.get_json()
         session = next((s for s in sessions if s['id'] == session_id), None)
         if not session:
-            return jsonify({"message": "Session not found"}), 404
+            return make_response(jsonify({"message": "Session not found"}), 404)
         user = next((u for u in users if u['id'] == session['user_id']), None)
         if user['secret'] != data['secret']:
-            return jsonify({"message": "Unauthorized"}), 401
+            return make_response(jsonify({"message": "Unauthorized"}), 401)
         sessions.remove(session)
-        return jsonify({"message": "Session deleted successfully"})
+        return make_response(jsonify({"message": "Session deleted successfully"}), 200)
 
 
-# Добавление ресурсов в API
 api.add_resource(UserResource, '/users', '/users/<int:user_id>')
 api.add_resource(MethodResource, '/methods')
 api.add_resource(SessionResource, '/sessions', '/sessions/<int:session_id>')

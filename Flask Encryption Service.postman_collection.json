@@ -10,10 +10,16 @@
 			"name": "/users",
 			"request": {
 				"method": "POST",
-				"header": [],
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\r\n  \"login\": \"user1\",\r\n  \"secret\": \"secret123\"\r\n}\r\n",
+					"raw": "{\r\n  \"login\": \"user1\",\r\n  \"secret\": \"secret1234\"\r\n}\r\n",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -85,10 +91,16 @@
 			"name": "/sessions",
 			"request": {
 				"method": "POST",
-				"header": [],
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\r\n  \"user_id\": 1,\r\n  \"method_id\": 1,\r\n  \"data_in\": \"HELLO WORLD\",\r\n  \"params\": {\"shift\": 3}\r\n}\r\n",
+					"raw": "{\r\n    \"user_id\": 1,\r\n    \"method_id\": 1,\r\n    \"data_in\": \"Encrypt this data\",\r\n    \"params\": {\r\n        \"shift\": 3\r\n    },\r\n    \"action\": \"encrypt\"\r\n}",
 					"options": {
 						"raw": {
 							"language": "json"
@@ -139,7 +151,13 @@
 			"name": "/sessions/:session_id",
 			"request": {
 				"method": "DELETE",
-				"header": [],
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
 				"body": {
 					"mode": "raw",
 					"raw": "{\r\n  \"secret\": \"secret123\"\r\n}\r\n",
@@ -162,6 +180,43 @@
 					"path": [
 						"sessions",
 						"1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "/sessions",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"user_id\": 1,\r\n    \"method_id\": 1,\r\n    \"data_in\": \"Hqfubsw wklv gdfd\",\r\n    \"params\": {\r\n        \"shift\": 3\r\n    },\r\n    \"action\": \"decrypt\"\r\n}\r\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://127.0.0.1:5000/sessions",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "5000",
+					"path": [
+						"sessions"
 					]
 				}
 			},
