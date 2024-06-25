@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Encryption Service</title>
+    <style>
+        body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 0; }
+        .container { width: 80%; margin: 20px auto; background: #fff; padding: 20px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }
+        h1 { text-align: center; color: #333; }
+        pre { background: #f4f4f4; padding: 10px; }
+        .endpoint { font-weight: bold; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Encryption Service API</h1>
+
+        <div class="endpoint">**Post/users**</div>
+        <p>Здесь вы можете создать нового пользователя, указав логин и секрет.</p>
+
+        <div class="endpoint">**Get/users**</div>
+        <p>Предназначен для просмотра всех пользователей с их id и логином.</p>
+
+        <div class="endpoint">**Get/methods**</div>
+        <p>Здесь вы можете посмотреть необходимую структуру для шифрования различными способами.</p>
+
+        <div class="endpoint">**Post/sessions**</div>
+        <p>Их 2, в одном происходит шифрование, в другом - расшифровка.</p>
+
+        <div class="endpoint">**Get/sessions/:session_id**</div>
+        <p>Вы можете посмотреть содержимое вашей сессии (дата/время, шифр, id пользователя, метод шифрования). Для этого обязательно укажите id сессии в URL.</p>
+
+        <div class="endpoint">**Del/sessions/:session_id**</div>
+        <p>Здесь можно удалить вашу сессию, указав ваш секрет.</p>
+
+        <div class="endpoint">**Get/sessions**</div>
+        <p>Предназначен для просмотра всех сессий с их id и содержимым.</p>
+
+        <div class="endpoint">**Post/hack_session**</div>
+        <p>Эта точка предназначена для взлома сессий шифрования. Укажите id сессии и параметры для расшифровки.</p>
+    </div>
+</body>
+</html>
