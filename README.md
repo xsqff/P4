@@ -67,9 +67,9 @@
    pip install -r requirements.txt
 3. Инициализируйте базу данных:
    ```bash
- >>> from app import db
- >>> db.create_all()
- >>> exit()
+   from app import db
+   db.create_all()
+   exit()
 4. Запустите сервер:
    ```bash
    python app.py
