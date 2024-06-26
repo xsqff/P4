@@ -58,20 +58,19 @@
 Чтобы вернуться к методу Цезаря, необходимо сделать то же самое для метода Цезаря.
 
 ## Развертывание и использование системы
- 1. Клонируйте репозиторий:
-    ```bash
+1. Клонируйте репозиторий:
+   ```bash
    git clone <repository-url>
    cd <repository-directory>
- 2. Установите зависимости:
-    ```bash
-pip install -r requirements.txt
- 3. Инициализируйте базу данных:
-    ```bash
+2. Установите зависимости:
+   ```bash
+   pip install -r requirements.txt
+3. Инициализируйте базу данных:
+   ```bash
  >>> from app import db
  >>> db.create_all()
  >>> exit()
- 4. Запустите сервер:
-    ```bash
+4. Запустите сервер:
+   ```bash
    python app.py
-
- 5. Импортируйте Postman-коллекцию (EncryptionService.postman_collection.json) в Postman и используйте её для тестирования API.
+5. Импортируйте Postman-коллекцию (EncryptionService.postman_collection.json) в Postman и используйте её для тестирования API.
