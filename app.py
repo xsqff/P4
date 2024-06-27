@@ -1,38 +1,52 @@
-from flask import Flask, request, jsonify, make_response
+
+from flask import Flask, request, jsonify
 from flask_restful import Api, Resource
 from datetime import datetime
-from flask_sqlalchemy import SQLAlchemy
+import sqlite3
 
 app = Flask(__name__)
 api = Api(app)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///mydatabase.db'
-db = SQLAlchemy(app)
 
-ALPHABET = " ,.:(_)-0123456789АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ"
+ALPHABET = " ,.:(_)-0123456789AБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ"
 
-class User(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    login = db.Column(db.String(80), unique=True, nullable=False)
-    secret = db.Column(db.String(80), nullable=False)
+# Database initialization
+def init_db():
+    conn = sqlite3.connect('encryption.db')
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY,
+            login TEXT UNIQUE NOT NULL,
+            secret TEXT NOT NULL
+        )
+    ''')
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS methods (
+            id INTEGER PRIMARY KEY,
+            caption TEXT NOT NULL,
+            json_params TEXT NOT NULL,
+            description TEXT
+        )
+    ''')
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS sessions (
+            id INTEGER PRIMARY KEY,
+            user_id INTEGER,
+            method_id INTEGER,
+            data_in TEXT,
+            params TEXT,
+            data_out TEXT,
+            status TEXT,
+            created_at TEXT,
+            time_op TEXT,
+            FOREIGN KEY(user_id) REFERENCES users(id),
+            FOREIGN KEY(method_id) REFERENCES methods(id)
+        )
+    ''')
+    conn.commit()
+    conn.close()
 
-class Method(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    caption = db.Column(db.String(80), nullable=False)
-    json_params = db.Column(db.String(80), nullable=False)
-    description = db.Column(db.String(80), nullable=False)
-
-class Session(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    method_id = db.Column(db.Integer, db.ForeignKey('method.id'), nullable=False)
-    data_in = db.Column(db.String(80), nullable=False)
-    params = db.Column(db.String(80), nullable=False)
-    data_out = db.Column(db.String(80), nullable=False)
-    status = db.Column(db.String(80), nullable=False)
-    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
-    time_op = db.Column(db.String(80), nullable=False)
-
-# Определения функций шифрования и классов ресурсов остаются прежними...
+init_db()
 
 def caesar_cipher(text, shift, decrypt=False):
     result = []
@@ -60,88 +74,170 @@ def vigenere_cipher(text, key, decrypt=False):
 
 class UserResource(Resource):
     def post(self):
-        global user_counter
         data = request.get_json()
-        new_user = {"id": user_counter, "login": data['login'], "secret": data['secret']}
-        users.append(new_user)
-        user_counter += 1
-        return make_response(jsonify({"message": "User created successfully", "user": new_user}), 201)
+        login = data['login']
+        secret = data['secret']
+        conn = sqlite3.connect('encryption.db')
+        c = conn.cursor()
+        c.execute("INSERT INTO users (login, secret) VALUES (?, ?)", (login, secret))
+        conn.commit()
+        user_id = c.lastrowid
+        conn.close()
+        return jsonify({"message": "User created successfully", "user": {"id": user_id, "login": login}})
 
     def get(self):
-        result = [{"id": user['id'], "login": user['login']} for user in users]
-        return make_response(jsonify(result), 200)
+        conn = sqlite3.connect('encryption.db')
+        c = conn.cursor()
+        c.execute("SELECT id, login FROM users")
+        users = c.fetchall()
+        conn.close()
+        result = [{"id": user[0], "login": user[1]} for user in users]
+        return jsonify(result)
 
 class MethodResource(Resource):
     def get(self):
-        return make_response(jsonify(methods), 200)
+        conn = sqlite3.connect('encryption.db')
+        c = conn.cursor()
+        c.execute("SELECT * FROM methods")
+        methods = c.fetchall()
+        conn.close()
+        result = [{"id": method[0], "caption": method[1], "json_params": method[2], "description": method[3]} for method in methods]
+        return jsonify(result)
 
 class SessionResource(Resource):
     def post(self):
-        global session_counter
         data = request.get_json()
         user_id = data['user_id']
         method_id = data['method_id']
-        action = data.get('action', 'encrypt')
-        user = next((u for u in users if u['id'] == user_id), None)
-        method = next((m for m in methods if m['id'] == method_id), None)
-
-        if not user:
-            return make_response(jsonify({"message": "User not found"}), 404)
-        if not method:
-            return make_response(jsonify({"message": "Method not found"}), 404)
-
         data_in = data['data_in'].upper()
         data_in = ''.join(filter(lambda x: x in ALPHABET, data_in))
         params = data.get('params', {})
+        decrypt = data.get('decrypt', False)
         start_time = datetime.now()
 
-        if method['caption'] == "CAESAR":
+        conn = sqlite3.connect('encryption.db')
+        c = conn.cursor()
+        c.execute("SELECT caption FROM methods WHERE id = ?", (method_id,))
+        method = c.fetchone()
+        if not method:
+            return jsonify({"message": "Method not found"}), 404
+        method_caption = method[0]
+
+        if method_caption == "CAESAR":
             shift = int(params.get('shift', 0))
-            data_out = caesar_cipher(data_in, shift, decrypt=(action == 'decrypt'))
-        elif method['caption'] == "VIGENERE":
+            data_out = caesar_cipher(data_in, shift, decrypt=decrypt)
+        elif method_caption == "VIGENERE":
             key = params.get('key', '')
-            data_out = vigenere_cipher(data_in, key, decrypt=(action == 'decrypt'))
+            data_out = vigenere_cipher(data_in, key, decrypt=decrypt)
 
         end_time = datetime.now()
         time_op = (end_time - start_time).total_seconds()
 
-        new_session = {
-            "id": session_counter,
-            "user_id": user_id,
-            "method_id": method_id,
-            "data_in": data_in,
-            "params": params,
-            "data_out": data_out,
-            "status": "completed",
-            "created_at": datetime.now().isoformat(),
-            "time_op": str(time_op)
-        }
-        sessions.append(new_session)
-        session_counter += 1
-        return make_response(jsonify({"message": "Encryption session created successfully", "session": new_session}), 201)
+        c.execute('''
+            INSERT INTO sessions (user_id, method_id, data_in, params, data_out, status, created_at, time_op)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (user_id, method_id, data_in, str(params), data_out, "completed", datetime.now().isoformat(), str(time_op)))
+        conn.commit()
+        session_id = c.lastrowid
+        conn.close()
+        return jsonify({"message": "Encryption session created successfully", "session": {"id": session_id, "data_out": data_out, "time_op": time_op}})
 
     def get(self, session_id):
-        session = next((s for s in sessions if s['id'] == session_id), None)
+        conn = sqlite3.connect('encryption.db')
+        c = conn.cursor()
+        c.execute("SELECT * FROM sessions WHERE id = ?", (session_id,))
+        session = c.fetchone()
+        conn.close()
         if not session:
-            return make_response(jsonify({"message": "Session not found"}), 404)
-        return make_response(jsonify(session), 200)
+            return jsonify({"message": "Session not found"}), 404
+        result = {
+            "id": session[0],
+            "user_id": session[1],
+            "method_id": session[2],
+            "data_in": session[3],
+            "params": session[4],
+            "data_out": session[5],
+            "status": session[6],
+            "created_at": session[7],
+            "time_op": session[8]
+        }
+        return jsonify(result)
 
     def delete(self, session_id):
         data = request.get_json()
-        session = next((s for s in sessions if s['id'] == session_id), None)
+        secret = data['secret']
+        conn = sqlite3.connect('encryption.db')
+        c = conn.cursor()
+        c.execute("SELECT user_id FROM sessions WHERE id = ?", (session_id,))
+        session = c.fetchone()
         if not session:
-            return make_response(jsonify({"message": "Session not found"}), 404)
-        user = next((u for u in users if u['id'] == session['user_id']), None)
-        if user['secret'] != data['secret']:
-            return make_response(jsonify({"message": "Unauthorized"}), 401)
-        sessions.remove(session)
-        return make_response(jsonify({"message": "Session deleted successfully"}), 200)
+            return jsonify({"message": "Session not found"}), 404
+        user_id = session[0]
+        c.execute("SELECT secret FROM users WHERE id = ?", (user_id,))
+        user = c.fetchone()
+        if not user or user[0] != secret:
+            return jsonify({"message": "Unauthorized"}), 401
+        c.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
+        conn.commit()
+        conn.close()
+        return jsonify({"message": "Session deleted successfully"})
 
-api.add_resource(UserResource, '/users', '/users/<int:user_id>')
+class HackSessionResource(Resource):
+    def post(self):
+        data = request.get_json()
+        session_id = data['session_id']
+        conn = sqlite3.connect('encryption.db')
+        c = conn.cursor()
+        c.execute("SELECT data_in, method_id FROM sessions WHERE id = ?", (session_id,))
+        session = c.fetchone()
+        if not session:
+            return jsonify({"message": "Session not found"}), 404
+        data_in, method_id = session
+        c.execute("SELECT caption FROM methods WHERE id = ?", (method_id,))
+        method = c.fetchone()
+        if not method:
+            return jsonify({"message": "Method not found"}), 404
+        method_caption = method[0]
+
+        if method_caption == "CAESAR":
+            for shift in range(len(ALPHABET)):
+                data_out = caesar_cipher(data_in, shift, decrypt=True)
+                if 'СЕКРЕТ' in data_out or 'ПРИМЕР' in data_out:
+                    conn.close()
+                    return jsonify({"message": "Caesar cipher hacked successfully", "data_out": data_out, "shift": shift})
+        elif method_caption == "VIGENERE":
+            # Simple example for Vigenere cipher hack, assuming key length of 3
+            for k1 in ALPHABET:
+                for k2 in ALPHABET:
+                    for k3 in ALPHABET:
+                        data_out = vigenere_cipher(data_in, key, decrypt=True)
+                        if 'СЕКРЕТ' in data_out or 'ПРИМЕР' in data_out:
+                            conn.close()
+                            return jsonify(
+                                {"message": "Vigenere cipher hacked successfully", "data_out": data_out, "key": key})
+        conn.close()
+        return jsonify({"message": "Failed to hack the cipher"})
+
+# Initial methods
+def add_initial_methods():
+    conn = sqlite3.connect('encryption.db')
+    c = conn.cursor()
+    c.execute("SELECT COUNT(*) FROM methods")
+    count = c.fetchone()[0]
+    if count == 0:
+        c.execute("INSERT INTO methods (caption, json_params, description) VALUES (?, ?, ?)",
+                  ("CAESAR", '{"shift": "int"}', "Caesar cipher"))
+        c.execute("INSERT INTO methods (caption, json_params, description) VALUES (?, ?, ?)",
+                  ("VIGENERE", '{"key": "string"}', "Vigenere cipher"))
+    conn.commit()
+    conn.close()
+
+add_initial_methods()
+
+api.add_resource(UserResource, '/users')
 api.add_resource(MethodResource, '/methods')
 api.add_resource(SessionResource, '/sessions', '/sessions/<int:session_id>')
+api.add_resource(HackSessionResource, '/hack_session')
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()  # Создает таблицы в базе данных
     app.run(debug=True)
